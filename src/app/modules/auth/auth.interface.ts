@@ -10,3 +10,8 @@ export type TJwtPayload = {
     role: string,
     email: string
 }
+
+export type TPasswordChange = {
+    currentPassword: string,
+    newPassword: string
+}

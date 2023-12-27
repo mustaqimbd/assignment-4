@@ -1,10 +1,11 @@
 import sendError from "../../errorHandlers/sendError"
 import UserModel from "../user/user.model"
-import { TUserLogin } from "./auth.interface"
+import { TPasswordChange, TUserLogin } from "./auth.interface"
 import httpStatus from "http-status"
 import bcrypt from "bcrypt"
 import { jwt_expire, jwt_secret } from "../../config/config"
 import { createJwtToken } from "./auth.utils"
+import { TPasswordChangeHistory } from "../user/user.interface"
 
 const loginUser = async (payload: TUserLogin) => {
     const { username, password } = payload
@@ -13,7 +14,7 @@ const loginUser = async (payload: TUserLogin) => {
     if (!user) {
         throw new sendError(httpStatus.NOT_FOUND, "Username not found!")
     }
-    console.log(user.password)
+
     const isPasswordMatch = await bcrypt.compare(password, user.password)
     if (!isPasswordMatch) {
         throw new sendError(httpStatus.BAD_REQUEST, "Password does not match!")
@@ -25,4 +26,48 @@ const loginUser = async (payload: TUserLogin) => {
     return { user, token }
 }
 
-export const authServices = { loginUser }
+const changePassword = async (userId: string, payload: TPasswordChange) => {
+    const { currentPassword, newPassword } = payload
+
+    const user = await UserModel.findById(userId)
+
+    if (!user) {
+        throw new sendError(httpStatus.NOT_FOUND, "User not found!")
+    }
+
+    const { passwordChangedHistory, password, passwordChangedAt } = user
+
+    const isPasswordMatch = await bcrypt.compare(currentPassword, password)
+    if (!isPasswordMatch) {
+        throw new sendError(httpStatus.BAD_REQUEST, "Password does not match!")
+    }
+
+    const isPasswordMatchWithPrevious = passwordChangedHistory.find(({ oldPassword }) => oldPassword === newPassword)
+
+    if (isPasswordMatchWithPrevious || currentPassword === newPassword) {
+        throw new sendError(
+            httpStatus.BAD_REQUEST,
+            `Password change failed. Ensure the new password is unique and not among the last 2 used (last used on ${isPasswordMatchWithPrevious?.date || passwordChangedAt}).`
+        );
+    }
+
+    const updatedPassHistory = (passwordChangedHistory.length === 2 ? passwordChangedHistory.slice(0, -1) : passwordChangedHistory) as TPasswordChangeHistory[]
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    const result = await UserModel.findByIdAndUpdate(
+        userId,
+        {
+            password: hashedPassword,
+            passwordChangedAt: Date.now(),
+            passwordChangedHistory: [
+                { oldPassword: currentPassword, date: Date.now() },
+                ...updatedPassHistory
+            ]
+        },
+        { new: true }
+    ).select("-passwordChangedAt")
+
+    return result
+}
+
+export const authServices = { loginUser, changePassword }
