@@ -11,7 +11,7 @@ const handleZodError = (err: ZodError): TErrorResponse => {
             msg: issue.message,
         }
     })
-    console.log(errorSource)
+    
     const errorMessage = errorSource.map(({ msg }) => msg).join(' ');
 
     return { statusCode, message, errorMessage }

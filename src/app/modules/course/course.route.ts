@@ -2,10 +2,12 @@ import express from 'express';
 import { courseControllers } from './course.controller';
 import requestValidator from '../../middlewares/requestValidator';
 import { courseDataValidationSchema, updateCourseDataValidationSchema } from './course.validation';
+import authGuard from '../../middlewares/authGuard';
 const courseRoutes = express.Router()
 
 courseRoutes.post(
     '/',
+    authGuard('admin'),
     requestValidator(courseDataValidationSchema),
     courseControllers.createCourse
 )
@@ -26,6 +28,7 @@ courseRoutes.get(
 
 courseRoutes.put(
     '/:courseId',
+    authGuard('admin'),
     requestValidator(updateCourseDataValidationSchema),
     courseControllers.updateCourse
 )

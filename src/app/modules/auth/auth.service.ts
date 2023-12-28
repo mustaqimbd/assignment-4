@@ -30,7 +30,6 @@ const changePassword = async (userId: string, payload: TPasswordChange) => {
     const { currentPassword, newPassword } = payload
 
     const user = await UserModel.findById(userId)
-
     if (!user) {
         throw new sendError(httpStatus.NOT_FOUND, "User not found!")
     }
@@ -42,7 +41,18 @@ const changePassword = async (userId: string, payload: TPasswordChange) => {
         throw new sendError(httpStatus.BAD_REQUEST, "Password does not match!")
     }
 
-    const isPasswordMatchWithPrevious = passwordChangedHistory.find(({ oldPassword }) => oldPassword === newPassword)
+
+    const isPasswordPrevious = await Promise.all(passwordChangedHistory.map(async (val) => {
+        const isMatch = await bcrypt.compare(newPassword, val.oldPassword);
+        if (isMatch) {
+            return val
+        }
+    }));
+
+
+    const isPasswordMatchWithPrevious = isPasswordPrevious.find((result) => result !== undefined);
+   
+    // const isPasswordMatchWithPrevious = passwordChangedHistory.find(({ oldPassword }) => oldPassword === newPassword)
 
     if (isPasswordMatchWithPrevious || currentPassword === newPassword) {
         throw new sendError(
@@ -60,7 +70,7 @@ const changePassword = async (userId: string, payload: TPasswordChange) => {
             password: hashedPassword,
             passwordChangedAt: Date.now(),
             passwordChangedHistory: [
-                { oldPassword: currentPassword, date: Date.now() },
+                { oldPassword: password, date: Date.now() },
                 ...updatedPassHistory
             ]
         },

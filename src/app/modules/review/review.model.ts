@@ -18,6 +18,11 @@ const reviewSchema = new Schema<TReview>(
             type: String,
             required: true,
         },
+        createdBy: {
+            type: Schema.Types.ObjectId,
+            required: true,
+            ref: "User"
+        }
     },
     { timestamps: true }
 );
@@ -25,8 +30,6 @@ const reviewSchema = new Schema<TReview>(
 reviewSchema.methods.toJSON = function () {
     const review = this.toObject()
     delete review.__v
-    delete review.createdAt
-    delete review.updatedAt
     return review
 }
 

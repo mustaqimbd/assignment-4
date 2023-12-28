@@ -28,7 +28,8 @@ const courseSchema = new Schema<TCourse>(
         language: { type: String, required: true },
         provider: { type: String, required: true },
         durationInWeeks: { type: Number },
-        details: { type: detailsSchema, required: true }
+        details: { type: detailsSchema, required: true },
+        createdBy: { type: Schema.Types.ObjectId, required: true, ref: "User" }
     },
     { timestamps: true }
 )
@@ -36,8 +37,6 @@ const courseSchema = new Schema<TCourse>(
 courseSchema.methods.toJSON = function () {
     const category = this.toObject()
     delete category.__v
-    delete category.createdAt
-    delete category.updatedAt
     return category
 }
 

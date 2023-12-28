@@ -3,7 +3,8 @@ import sendResponse from "../../utilities/sendResponse";
 import { courseServices } from "./course.service";
 
 const createCourse = catchAsync(async (req, res) => {
-    const result = await courseServices.createCourseIntoDB(req.body)
+    const userId = req.user._id
+    const result = await courseServices.createCourseIntoDB(userId, req.body)
     sendResponse(res, {
         statusCode: 201,
         message: "Course created successfully",
@@ -21,7 +22,8 @@ const getCourses = catchAsync(async (req, res) => {
 
 const updateCourse = catchAsync(async (req, res) => {
     const id = req.params.courseId
-    const result = await courseServices.updateCourseIntoDB(id, req.body)
+    const createdBy = req.user._id
+    const result = await courseServices.updateCourseIntoDB(id, req.body, createdBy)
     sendResponse(res, {
         message: "Course updated successfully",
         data: result

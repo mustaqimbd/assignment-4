@@ -10,6 +10,7 @@ type TUserRole = "user" | "admin"
 const authGuard = (...role: TUserRole[]) => {
     return catchAsync(async (req, res, next) => {
         const token = req.headers.authorization
+        
         if (!token) {
             throw new sendError(httpStatus.UNAUTHORIZED, "Unauthorized access!")
         }
@@ -27,9 +28,9 @@ const authGuard = (...role: TUserRole[]) => {
 
         const passwordChangedTime = new Date(user.passwordChangedAt).getTime() / 1000
         if (passwordChangedTime > (decode.iat as number)) {
-            throw new sendError(httpStatus.UNAUTHORIZED, "Unauthorized access!")
+            throw new sendError(httpStatus.UNAUTHORIZED, "Unauthorized access! Login again!")
         }
-
+        
         req.user = decode
 
         next()

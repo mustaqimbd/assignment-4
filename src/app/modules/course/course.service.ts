@@ -1,27 +1,27 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import queryHelper from "../queryHelper/queryHelper";
 import { TCourse } from "./course.interface"
 import { CourseModel } from "./course.model"
 import sendError from "../../errorHandlers/sendError";
 import ReviewModel from "../review/review.model";
 
-const createCourseIntoDB = async (payload: TCourse) => {
+const createCourseIntoDB = async (userId: Types.ObjectId, payload: TCourse) => {
 
     const startDate = new Date(payload.startDate);
     const endDate = new Date(payload.endDate);
     const timeDifference = endDate.getTime() - startDate.getTime();
     const durationInWeeks = Math.ceil(timeDifference / (7 * 24 * 60 * 60 * 1000));
     payload.durationInWeeks = durationInWeeks;
+    payload.createdBy = userId
 
     const result = await CourseModel.create(payload)
     return result
 }
+
 const getCoursesFromDB = async (queryParameter: Record<string, unknown>) => {
-
     const { query, sortOptions, currentPage, currentLimit } = queryHelper(queryParameter)
-
-    const data = await CourseModel.find(query)
-        .skip((currentPage - 1) * currentLimit)
+   
+    const data = await CourseModel.find(query).populate("createdBy", 'username email role').skip((currentPage - 1) * currentLimit)
         .limit(currentLimit)
         .sort(sortOptions)
         .exec();
@@ -33,8 +33,9 @@ const getCoursesFromDB = async (queryParameter: Record<string, unknown>) => {
     return { meta, data }
 }
 
-const updateCourseIntoDB = async (id: string, payload: Partial<TCourse>) => {
+const updateCourseIntoDB = async (id: string, payload: Partial<TCourse>, createdBy: Types.ObjectId) => {
     const { tags, details, ...remainingData } = payload
+    remainingData.createdBy = createdBy
     const session = await mongoose.startSession()
     try {
         session.startTransaction()
@@ -112,7 +113,7 @@ const updateCourseIntoDB = async (id: string, payload: Partial<TCourse>) => {
 
         await session.commitTransaction()
         await session.endSession()
-        const result = await CourseModel.findById(id)
+        const result = await CourseModel.findById(id).populate("createdBy", "username email role")
         return result
     } catch (error) {
         await session.abortTransaction()
@@ -123,8 +124,8 @@ const updateCourseIntoDB = async (id: string, payload: Partial<TCourse>) => {
 
 const getCourseWithReviewFromDB = async (id: string) => {
 
-    const result1 = await CourseModel.findById(id)
-    const result2 = await ReviewModel.find({ courseId: id })
+    const result1 = await CourseModel.findById(id).populate("createdBy", "username email role")
+    const result2 = await ReviewModel.find({ courseId: id }).populate("createdBy", "username email role")
 
     return { course: result1, reviews: result2 }
 }
@@ -146,8 +147,8 @@ const getBestCourseFromDB = async () => {
     });
 
     if (result1.length > 0) {
-        const result2 = await CourseModel.findById({ _id: result1[0]._id })
-            .select('-createdAt -updatedAt -__v')
+        const result2 = await CourseModel.findById({ _id: result1[0]._id }).populate('createdBy',"username email role")
+            .select(' -__v')
             .lean();
 
         return { course: { ...result2, ...result1[0] } }
